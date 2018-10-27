@@ -20,7 +20,10 @@ def gaussian_img(img_height, img_width, c_x, c_y, variance):
 
 def read_image(file, cam, boxsize, type):
     # from file
-    if type == 'IMAGE':
+    if type == 'BIN':
+        array = np.frombuffer(file, dtype='uint8')
+        oriImg = cv2.imdecode(array, cv2.IMREAD_UNCHANGED)
+    elif type == 'IMAGE':
         oriImg = cv2.imread(file)
     # from webcam
     elif type == 'WEBCAM':
