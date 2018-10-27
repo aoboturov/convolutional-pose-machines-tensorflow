@@ -24,7 +24,7 @@ tf.app.flags.DEFINE_string(name='DEMO_TYPE',
                                 'HM: show last stage heatmap,'
                                 'paths to .jpg or .png image')
 tf.app.flags.DEFINE_string(name='model_path',
-                           default='models/weights/cpm_hand.pkl',
+                           default='/floyd/input/weights/cpm_hand.pkl',
                            help='Your model')
 tf.app.flags.DEFINE_integer(name='input_size',
                             default=368,
