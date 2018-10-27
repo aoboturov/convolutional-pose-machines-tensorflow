@@ -19,6 +19,6 @@ task:
 #    command: python evaluate.py
 #
   serve:
-    machine: gpu
+    machine: cpu
     mode: serve
     command: python demo_cpm_hand.py --model_path=/floyd/input/weights/cpm_hand.pkl
