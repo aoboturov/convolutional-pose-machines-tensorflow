@@ -54,7 +54,7 @@ tf.app.flags.DEFINE_string('color_channel',
                            default_value='RGB',
                            docstring='')
 tf.app.flags.DEFINE_bool('use_gpu',
-                         default_value=True,
+                         default_value=False,
                          docstring='enable GPU')
 tf.app.flags.DEFINE_integer('gpu_id',
                             default_value=0,
