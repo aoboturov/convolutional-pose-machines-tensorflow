@@ -16,49 +16,49 @@ app = Flask(__name__)
 """Parameters
 """
 FLAGS = tf.app.flags.FLAGS
-tf.app.flags.DEFINE_string('DEMO_TYPE',
-                           default_value='SINGLE',
-                           # default_value='SINGLE',
-                           docstring='MULTI: show multiple stage,'
-                                     'SINGLE: only last stage,'
-                                     'HM: show last stage heatmap,'
-                                     'paths to .jpg or .png image')
-tf.app.flags.DEFINE_string('model_path',
-                           default_value='models/weights/cpm_hand.pkl',
-                           docstring='Your model')
-tf.app.flags.DEFINE_integer('input_size',
-                            default_value=368,
-                            docstring='Input image size')
-tf.app.flags.DEFINE_integer('hmap_size',
-                            default_value=46,
-                            docstring='Output heatmap size')
-tf.app.flags.DEFINE_integer('cmap_radius',
-                            default_value=21,
-                            docstring='Center map gaussian variance')
-tf.app.flags.DEFINE_integer('joints',
-                            default_value=21,
-                            docstring='Number of joints')
-tf.app.flags.DEFINE_integer('stages',
-                            default_value=6,
-                            docstring='How many CPM stages')
-tf.app.flags.DEFINE_integer('cam_num',
-                            default_value=0,
-                            docstring='Webcam device number')
-tf.app.flags.DEFINE_bool('KALMAN_ON',
-                         default_value=True,
-                         docstring='enalbe kalman filter')
+tf.app.flags.DEFINE_string(name='DEMO_TYPE',
+                           default='SINGLE',
+                           # default='SINGLE',
+                           help='MULTI: show multiple stage,'
+                                'SINGLE: only last stage,'
+                                'HM: show last stage heatmap,'
+                                'paths to .jpg or .png image')
+tf.app.flags.DEFINE_string(name='model_path',
+                           default='models/weights/cpm_hand.pkl',
+                           help='Your model')
+tf.app.flags.DEFINE_integer(name='input_size',
+                            default=368,
+                            help='Input image size')
+tf.app.flags.DEFINE_integer(name='hmap_size',
+                            default=46,
+                            help='Output heatmap size')
+tf.app.flags.DEFINE_integer(name='cmap_radius',
+                            default=21,
+                            help='Center map gaussian variance')
+tf.app.flags.DEFINE_integer(name='joints',
+                            default=21,
+                            help='Number of joints')
+tf.app.flags.DEFINE_integer(name='stages',
+                            default=6,
+                            help='How many CPM stages')
+tf.app.flags.DEFINE_integer(name='cam_num',
+                            default=0,
+                            help='Webcam device number')
+tf.app.flags.DEFINE_bool(name='KALMAN_ON',
+                         default=True,
+                         help='enalbe kalman filter')
 tf.app.flags.DEFINE_float('kalman_noise',
-                          default_value=3e-2,
-                          docstring='Kalman filter noise value')
-tf.app.flags.DEFINE_string('color_channel',
-                           default_value='RGB',
-                           docstring='')
-tf.app.flags.DEFINE_bool('use_gpu',
-                         default_value=False,
-                         docstring='enable GPU')
-tf.app.flags.DEFINE_integer('gpu_id',
-                            default_value=0,
-                            docstring='Which GPU ID to use')
+                          default=3e-2,
+                          help='Kalman filter noise value')
+tf.app.flags.DEFINE_string(name='color_channel',
+                           default='RGB',
+                           help='')
+tf.app.flags.DEFINE_bool(name='use_gpu',
+                         default=False,
+                         help='enable GPU')
+tf.app.flags.DEFINE_integer(name='gpu_id',
+                            default=0,
+                            help='Which GPU ID to use')
 
 # Set color for each finger
 joint_color_code = [[139, 53, 255],
@@ -101,67 +101,63 @@ test_center_map = None
 sess = None
 
 
-def main(argv):
-    global tf_device
-    global model
-    global test_center_map
-    global sess
-
-    tf_device = '/gpu:{}'.format(FLAGS.gpu_id) if FLAGS.use_gpu else '/cpu:0'
-    with tf.device(tf_device):
-        """Build graph
-        """
-        if FLAGS.color_channel == 'RGB':
-            input_data = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.input_size, FLAGS.input_size, 3],
-                                        name='input_image')
-        else:
-            input_data = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.input_size, FLAGS.input_size, 1],
-                                        name='input_image')
-
-        center_map = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.input_size, FLAGS.input_size, 1],
-                                    name='center_map')
-
-        model = cpm_hand_slim.CPM_Model(FLAGS.stages, FLAGS.joints + 1)
-        model.build_model(input_data, center_map, 1)
-
-    saver = tf.train.Saver()
-
-    """Create session and restore weights
+tf_device = '/gpu:{}'.format(FLAGS.gpu_id) if FLAGS.use_gpu else '/cpu:0'
+with tf.device(tf_device):
+    """Build graph
     """
-    sess = tf.Session()
-
-    sess.run(tf.global_variables_initializer())
-    if FLAGS.model_path.endswith('pkl'):
-        model.load_weights_from_file(FLAGS.model_path, sess, False)
+    if FLAGS.color_channel == 'RGB':
+        input_data = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.input_size, FLAGS.input_size, 3],
+                                    name='input_image')
     else:
-        saver.restore(sess, FLAGS.model_path)
+        input_data = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.input_size, FLAGS.input_size, 1],
+                                    name='input_image')
 
-    test_center_map = cpm_utils.gaussian_img(FLAGS.input_size, FLAGS.input_size, FLAGS.input_size / 2,
-                                             FLAGS.input_size / 2,
-                                             FLAGS.cmap_radius)
-    test_center_map = np.reshape(test_center_map, [1, FLAGS.input_size, FLAGS.input_size, 1])
+    center_map = tf.placeholder(dtype=tf.float32, shape=[None, FLAGS.input_size, FLAGS.input_size, 1],
+                                name='center_map')
 
-    # Check weights
-    for variable in tf.trainable_variables():
-        with tf.variable_scope('', reuse=True):
-            var = tf.get_variable(variable.name.split(':0')[0])
-            print(variable.name, np.mean(sess.run(var)))
+    model = cpm_hand_slim.CPM_Model(FLAGS.stages, FLAGS.joints + 1)
+    model.build_model(input_data, center_map, 1)
 
-    if not FLAGS.DEMO_TYPE.endswith(('png', 'jpg')):
-        cam = cv2.VideoCapture(FLAGS.cam_num)
+saver = tf.train.Saver()
 
-    # Create kalman filters
-    if FLAGS.KALMAN_ON:
-        kalman_filter_array = [cv2.KalmanFilter(4, 2) for _ in range(FLAGS.joints)]
-        for _, joint_kalman_filter in enumerate(kalman_filter_array):
-            joint_kalman_filter.transitionMatrix = np.array([[1, 0, 1, 0], [0, 1, 0, 1], [0, 0, 1, 0], [0, 0, 0, 1]],
-                                                            np.float32)
-            joint_kalman_filter.measurementMatrix = np.array([[1, 0, 0, 0], [0, 1, 0, 0]], np.float32)
-            joint_kalman_filter.processNoiseCov = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
-                                                           np.float32) * FLAGS.kalman_noise
-    else:
-        kalman_filter_array = None
+"""Create session and restore weights
+"""
+sess = tf.Session()
 
+sess.run(tf.global_variables_initializer())
+if FLAGS.model_path.endswith('pkl'):
+    model.load_weights_from_file(FLAGS.model_path, sess, False)
+else:
+    saver.restore(sess, FLAGS.model_path)
+
+test_center_map = cpm_utils.gaussian_img(FLAGS.input_size, FLAGS.input_size, FLAGS.input_size / 2,
+                                         FLAGS.input_size / 2,
+                                         FLAGS.cmap_radius)
+test_center_map = np.reshape(test_center_map, [1, FLAGS.input_size, FLAGS.input_size, 1])
+
+# Check weights
+for variable in tf.trainable_variables():
+    with tf.variable_scope('', reuse=True):
+        var = tf.get_variable(variable.name.split(':0')[0])
+        print(variable.name, np.mean(sess.run(var)))
+
+if not FLAGS.DEMO_TYPE.endswith(('png', 'jpg')):
+    cam = cv2.VideoCapture(FLAGS.cam_num)
+
+# Create kalman filters
+if FLAGS.KALMAN_ON:
+    kalman_filter_array = [cv2.KalmanFilter(4, 2) for _ in range(FLAGS.joints)]
+    for _, joint_kalman_filter in enumerate(kalman_filter_array):
+        joint_kalman_filter.transitionMatrix = np.array([[1, 0, 1, 0], [0, 1, 0, 1], [0, 0, 1, 0], [0, 0, 0, 1]],
+                                                        np.float32)
+        joint_kalman_filter.measurementMatrix = np.array([[1, 0, 0, 0], [0, 1, 0, 0]], np.float32)
+        joint_kalman_filter.processNoiseCov = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, 1]],
+                                                       np.float32) * FLAGS.kalman_noise
+else:
+    kalman_filter_array = None
+
+
+def main(argv):
     print("* Starting web server... please wait until server has fully started")
     app.run(host='0.0.0.0', threaded=False)
 
