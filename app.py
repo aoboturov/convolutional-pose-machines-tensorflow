@@ -202,6 +202,29 @@ def evaluateHmImage():
             return response
         else:
             abort(500)
+
+@app.route('/formdata', methods=["POST"])
+def evaluateHmImageFormdata():
+    with tf.device(tf_device):
+        if 'file' not in request.files:
+            abort(409)
+        file = request.files['file']
+
+        test_img = cpm_utils.read_image(file.stream.read(), [], FLAGS.input_size, 'BIN')
+        stage_heatmap_np = prepare_heatmap(test_img)
+
+        # Show visualized image
+        demo_img = visualize_result(test_img, FLAGS, stage_heatmap_np, kalman_filter_array)
+        ret_val, image_binary = cv2.imencode('.png', (demo_img).astype(np.uint8))
+        if ret_val:
+            response = make_response(image_binary.tobytes())
+            response.headers.set('Content-Type', 'image/png')
+            response.headers.set(
+                'Content-Disposition', 'attachment', filename='%s.png' % 'img')
+            return response
+        else:
+            abort(500)
+
     # while True:
     #     t1 = time.time()
     #     if FLAGS.DEMO_TYPE.endswith(('png', 'jpg')):
