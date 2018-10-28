@@ -9,7 +9,7 @@ import cv2
 import time
 import math
 import sys
-from flask import Flask, jsonify, request, make_response, abort
+from flask import Flask, jsonify, request, make_response, abort, Response
 
 app = Flask(__name__)
 
@@ -208,6 +208,7 @@ def evaluateHmImageFormdata():
     with tf.device(tf_device):
         if 'file' not in request.files:
             abort(409)
+            abort(Response('No field `file`'))
         file = request.files['file']
 
         test_img = cpm_utils.read_image(file.stream.read(), [], FLAGS.input_size, 'BIN')
@@ -224,6 +225,7 @@ def evaluateHmImageFormdata():
             return response
         else:
             abort(500)
+            abort(Response('failed to encode image'))
 
     # while True:
     #     t1 = time.time()
