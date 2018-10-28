@@ -9,7 +9,7 @@ import cv2
 import time
 import math
 import sys
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, make_response, abort
 
 app = Flask(__name__)
 
@@ -162,28 +162,46 @@ def main(argv):
     app.run(host='0.0.0.0', threaded=False)
 
 
-@app.route('/', methods=["POST"])
-def evaluate():
+def prepare_heatmap(test_img):
+    test_img_resize = cv2.resize(test_img, (FLAGS.input_size, FLAGS.input_size))
+    test_img_input = test_img_resize / 256.0 - 0.5
+    test_img_input = np.expand_dims(test_img_input, axis=0)
+    stage_heatmap_np = sess.run([model.stage_heatmap[5]],
+                                feed_dict={'input_image:0': test_img_input,
+                                           'center_map:0': test_center_map})
+    return stage_heatmap_np
+
+
+@app.route('/hm', methods=["POST"])
+def evaluateHm():
     with tf.device(tf_device):
         t1 = time.time()
-
         test_img = cpm_utils.read_image(request.data, [], FLAGS.input_size, 'BIN')
-
-        test_img_resize = cv2.resize(test_img, (FLAGS.input_size, FLAGS.input_size))
-        print('img read time %f' % (time.time() - t1))
-
-        test_img_input = test_img_resize / 256.0 - 0.5
-        test_img_input = np.expand_dims(test_img_input, axis=0)
-
-        stage_heatmap_np = sess.run([model.stage_heatmap[5]],
-                                    feed_dict={'input_image:0': test_img_input,
-                                               'center_map:0': test_center_map})
+        stage_heatmap_np = prepare_heatmap(test_img)
 
         return jsonify({
             'stage_heatmap_np': stage_heatmap_np[0].tolist(),
             'time': time.time() - t1
         })
 
+
+@app.route('/image', methods=["POST"])
+def evaluateHmImage():
+    with tf.device(tf_device):
+        test_img = cpm_utils.read_image(request.data, [], FLAGS.input_size, 'BIN')
+        stage_heatmap_np = prepare_heatmap(test_img)
+
+        # Show visualized image
+        demo_img = visualize_result(test_img, FLAGS, stage_heatmap_np, kalman_filter_array)
+        ret_val, image_binary = cv2.imencode('.png', (demo_img).astype(np.uint8))
+        if ret_val:
+            response = make_response(image_binary.tobytes(  ))
+            response.headers.set('Content-Type', 'image/png')
+            response.headers.set(
+                'Content-Disposition', 'attachment', filename='%s.png' % 'img')
+            return response
+        else:
+            abort(500)
     # while True:
     #     t1 = time.time()
     #     if FLAGS.DEMO_TYPE.endswith(('png', 'jpg')):
